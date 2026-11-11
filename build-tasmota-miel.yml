@@ -1,0 +1,51 @@
+name: Build Tasmota with MIEL_HVAC
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Tasmota
+        uses: actions/checkout@v4
+        with:
+          repository: arendst/Tasmota
+          ref: v16.0.0   # o la última release estable
+
+      - name: Create user_config_override.h
+        run: |
+          cat > tasmota/user_config_override.h << 'EOF'
+          #ifndef USER_CONFIG_OVERRIDE_H
+          #define USER_CONFIG_OVERRIDE_H
+
+          // Driver Mitsubishi Electric CN105 (puerto serie del split)
+          #define USE_MIEL_HVAC
+
+          // Opcional: expone todo por Modbus RTU en un segundo puerto
+          // #define USE_MIEL_HVAC_MODBUS_SLAVE
+
+          #endif  // USER_CONFIG_OVERRIDE_H
+          EOF
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build tasmota (ESP8266)
+        run: pio run -e tasmota
+
+      - name: Build tasmota-ESP32 (opcional)
+        run: pio run -e tasmota32
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tasmota-miel-hvac
+          path: |
+            build_output/firmware/tasmota.bin
+            build_output/firmware/tasmota32.bin
